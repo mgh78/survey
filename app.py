@@ -79,6 +79,22 @@ def save_to_csv(user_id, name, responses):
 def index():
     return render_template('index.html')
 
+@app.route('/download-csv')
+def download_csv():
+    """Download the CSV file directly"""
+    csv_file = os.path.join(DATA_DIR, 'all_users_data.csv')
+    
+    if not os.path.isfile(csv_file):
+        return "CSV file not found. No data has been collected yet.", 404
+    
+    from flask import send_file
+    return send_file(
+        csv_file,
+        as_attachment=True,
+        download_name='survey_data.csv',
+        mimetype='text/csv'
+    )
+
 @app.route('/submit', methods=['POST'])
 def submit():
     try:
