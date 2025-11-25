@@ -57,17 +57,25 @@ const SurveyApp = {
             return;
         }
         
-        // Check if user has already completed the survey
+        // Check if user can submit (weekly limit)
         const storedUserId = localStorage.getItem('survey_user_id');
-        const hasCompleted = localStorage.getItem('survey_completed') === 'true';
+        const lastSubmissionDate = localStorage.getItem('survey_last_submission');
         
-        if (hasCompleted && storedUserId) {
-            alert('شما قبلاً این نظرسنجی را تکمیل کرده‌اید. هر کاربر فقط یک بار می‌تواند پاسخ دهد.');
-            return;
+        // Check if 7 days have passed since last submission
+        if (lastSubmissionDate && storedUserId) {
+            const lastDate = new Date(lastSubmissionDate);
+            const now = new Date();
+            const daysSince = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+            
+            if (daysSince < 7) {
+                const daysRemaining = 7 - daysSince;
+                alert(`شما قبلاً این هفته پاسخ داده‌اید. می‌توانید ${daysRemaining} روز دیگر دوباره پاسخ دهید.`);
+                return;
+            }
         }
         
         // Use existing user_id or create new one
-        if (storedUserId && !hasCompleted) {
+        if (storedUserId) {
             this.userId = storedUserId;
         } else {
             this.userId = 'user_' + Date.now();
@@ -222,7 +230,7 @@ const SurveyApp = {
         this.responses.push({ question: 'می‌خوای با کسی صحبت کنی؟', answer: value });
         
         if (value === 'social_worker' || value === 'psychologist') {
-            this.addBotMessage('💬 خیلی خوب 🌼\nمی‌تونی با شماره‌ی موسسه [شماره‌ی تماس] تماس بگیری تا هماهنگ کنیم صحبت کنی.');
+            this.addBotMessage('💬 خیلی خوب 🌼\nمی‌تونی با شماره‌ی موسسه +989900908702 تماس بگیری تا هماهنگ کنیم صحبت کنی.');
         }
         
         setTimeout(() => this.askQuestion2(), 1500);
@@ -368,7 +376,7 @@ const SurveyApp = {
                 { text: '▫️ فعلاً نه', value: 'no' }
             ], (val) => {
                 if (val === 'social_worker' || val === 'psychologist') {
-                    this.addBotMessage('💬 می‌تونی با شماره‌ی موسسه [شماره‌ی تماس] تماس بگیری تا هماهنگ کنیم صحبت کنی.');
+                    this.addBotMessage('💬 می‌تونی با شماره‌ی موسسه +989900908702 تماس بگیری تا هماهنگ کنیم صحبت کنی.');
                 }
                 setTimeout(() => this.askQuestion5(), 1500);
             });
@@ -448,14 +456,12 @@ const SurveyApp = {
         .then(data => {
             if (data.success) {
                 console.log('Data saved successfully');
-                // Mark survey as completed in localStorage
-                localStorage.setItem('survey_completed', 'true');
+                // Store last submission date for weekly limit
+                localStorage.setItem('survey_last_submission', new Date().toISOString());
             } else {
-                // Show error message if user already submitted
+                // Show error message if user already submitted this week
                 if (data.error || data.message) {
                     this.addBotMessage(`⚠️ ${data.error || data.message}`);
-                    // Mark as completed even if error (to prevent retries)
-                    localStorage.setItem('survey_completed', 'true');
                 }
             }
         })

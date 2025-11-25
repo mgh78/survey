@@ -11,27 +11,48 @@ DATA_DIR = 'data'
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 
-def user_exists(user_id):
-    """Check if user_id already exists in the CSV file"""
+def can_user_submit(user_id):
+    """Check if user can submit - allow weekly submissions (7 days)"""
     csv_file = os.path.join(DATA_DIR, 'all_users_data.csv')
     if not os.path.isfile(csv_file):
-        return False
+        return True, None
     
+    from datetime import timedelta
+    
+    # Find the most recent submission for this user
+    last_submission_date = None
     with open(csv_file, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            if row.get('user_id') == user_id:
-                return True
-    return False
+            if row.get('user_id') == user_id and row.get('date'):
+                try:
+                    row_date = datetime.strptime(row.get('date'), '%Y-%m-%d %H:%M:%S')
+                    if last_submission_date is None or row_date > last_submission_date:
+                        last_submission_date = row_date
+                except:
+                    continue
+    
+    if last_submission_date is None:
+        return True, None
+    
+    # Check if 7 days have passed
+    days_since_last = (datetime.now() - last_submission_date).days
+    if days_since_last >= 7:
+        return True, last_submission_date
+    
+    days_remaining = 7 - days_since_last
+    return False, days_remaining
 
 def save_to_csv(user_id, name, responses):
     """Save user responses to a single CSV file - one row per user with all answers"""
     csv_file = os.path.join(DATA_DIR, 'all_users_data.csv')
     file_exists = os.path.isfile(csv_file)
     
-    # Check if user already exists
-    if user_exists(user_id):
-        raise ValueError('این کاربر قبلاً پاسخ داده است')
+    # Check if user can submit (weekly limit)
+    can_submit, info = can_user_submit(user_id)
+    if not can_submit:
+        days_remaining = info
+        raise ValueError(f'شما قبلاً این هفته پاسخ داده‌اید. می‌توانید {days_remaining} روز دیگر دوباره پاسخ دهید.')
     
     # Map questions to column names
     question_mapping = {
